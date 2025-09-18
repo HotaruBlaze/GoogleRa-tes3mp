@@ -10,7 +10,7 @@
 |   4. Place this script in the path:                                                                           |
 |      TES3MP\server\scripts\custom\dices.lua                                                                   |
 |   3. Open "customScripts.lua" and add there the following line:                                               |
-	   require("custom.dices")                                                                                  |
+|      require("custom.dices")                                                                                  |
 |   4. Save "customScripts.lua" and launch the server.                                                          |
 |                                                                                                               |
 |   P.S.: You need to add "Tamriel_Data.esm" in the OpenMW Launcher.                                            |
@@ -187,8 +187,8 @@ function throw(uniqueIndex)
         tes3mp.SetObjectPosition(interpX, interpY, finalZ)
         tes3mp.SetObjectRotation(rotX, rotY, rotZ)
         tes3mp.AddObject()
-        tes3mp.SendObjectMove(false)
-        tes3mp.SendObjectRotate(false)
+        tes3mp.SendObjectMove(true)
+        tes3mp.SendObjectRotate(true)
     else
         throwCube[uniqueIndex] = nil
         return
@@ -284,8 +284,8 @@ local function OnObjectPlace(eventStatus, pid, cellDescription, objects)
                 tes3mp.SetObjectPosition(playerLocation.posX, playerLocation.posY, playerLocation.posZ)
                 tes3mp.SetObjectRotation(playerLocation.rotX, playerLocation.rotY, playerLocation.rotZ)
                 tes3mp.AddObject()
-                tes3mp.SendObjectMove(false)
-                tes3mp.SendObjectRotate(false)
+                tes3mp.SendObjectMove(true)
+                tes3mp.SendObjectRotate(true)
 
                 throwCube[object.uniqueIndex] = {
                     object = object, 
@@ -305,3 +305,4 @@ local function OnObjectPlace(eventStatus, pid, cellDescription, objects)
 end
 
 customEventHooks.registerHandler("OnObjectPlace", OnObjectPlace)
+
