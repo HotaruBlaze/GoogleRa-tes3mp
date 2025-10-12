@@ -1,6 +1,6 @@
 ----------------------------------------
 ------   Anticheat by Гильгамеш   ------
-------        Versin: 0.01        ------
+------        Versin: 0.02        ------
 ------         For TES3MP         ------
 ----------------------------------------
 ------   Configs (true/false):    ------
@@ -497,3 +497,4 @@ customEventHooks.registerValidator("OnObjectPlace", OnObjectPlace)
 
 customEventHooks.registerHandler("OnObjectActivate", OnObjectActivate)
 customEventHooks.registerHandler("OnContainer", OnContainer)
+
