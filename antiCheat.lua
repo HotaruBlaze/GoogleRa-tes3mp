@@ -19,7 +19,7 @@ config.allSync = true             ------
 local vanillaSand = "#CAA560"
 local playerData = {}
 
-local function punishment(pid)
+local function punishment(pid, object, count)
 	if config.globalMessage then
 		if config.kickPlayer and config.language == "Ru" then
 			tes3mp.SendMessage(pid, color.Red .. "[Античит]:" .. vanillaSand .. " Игрок " .. Players[pid].accountName .. " был кикнут за использование читов.\n", true)
@@ -35,12 +35,27 @@ local function punishment(pid)
 			tes3mp.SendMessage(pid, color.Red .. "[Anticheat]:" .. vanillaSand .. " Player " .. Players[pid].accountName .. " has been caught trying to use cheats.\n", true)
 		end
 	end
+	if config.logMessage and count == 1 then
+		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to place item that doesn't exist in inventory: \"" .. object.refId .. "\" x" .. (object.count or 0))
+	elseif config.logMessage and count == 2 then
+		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " placed more items than you have in inventory: \"" .. object.refId .. "\" x" .. (object.count or 0))
+	elseif config.logMessage and count == 3 then
+		if object and #object > 0 then
+			for _, invalid in ipairs(object) do
+				tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to sell more items to the NPC than I had: \"" .. invalid.refId .. "\", sold: " .. invalid.soldCount .. ", had: " .. invalid.hadCount .. ", cheated: " .. invalid.difference)
+			end
+		end
+	elseif config.logMessage and count == 3 then
+		if object and #object > 0 then
+			for _, invalid in ipairs(object) do
+				tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to put an item in a container with more items than I had: \"" .. invalid.refId .. "\", sold: " .. invalid.soldCount .. ", had: " .. invalid.hadCount .. ", cheated: " .. invalid.difference)
+			end
+		end
+	end
 	if config.logMessage and config.kickPlayer then
 		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " has been kicked for using cheats")
 	elseif config.logMessage and config.banPlayer then
 		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " has been banned for using cheats")
-	elseif not config.kickPlayer and not config.banPlayer then
-		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " has been caught trying to use cheats")
 	end
 	if config.banPlayer then
 		tes3mp.BanAddress(tes3mp.GetIP(pid))
@@ -53,43 +68,52 @@ local function OnObjectPlace(eventStatus, pid, cellDescription, objects)
     for _, object in pairs(objects) do
         local totalCountInInventory = 0
         local isGold = string.match(object.refId, "^gold_")
-		local originalItem = nil
+        local originalItem = nil
+        local itemFound = false
         for _, item in pairs(Players[pid].data.inventory) do
             if item then
                 if isGold and string.match(item.refId, "^gold_") then
                     totalCountInInventory = totalCountInInventory + item.count
-					originalItem = {refId = item.refId, count = item.count, charge = item.charge, enchantmentCharge = item.enchantmentCharge, soul = item.soul}
+                    originalItem = {refId = item.refId, count = item.count, charge = item.charge, enchantmentCharge = item.enchantmentCharge, soul = item.soul}
+                    itemFound = true
                 elseif item.refId == object.refId then
                     local chargeMatch = (item.charge == object.charge) or (item.charge == -1 and object.charge == -1)
                     local enchantMatch = (item.enchantmentCharge == object.enchantmentCharge) or (item.enchantmentCharge == -1 and object.enchantmentCharge == -1)
                     if chargeMatch and enchantMatch then
                         totalCountInInventory = totalCountInInventory + item.count
-						originalItem = {refId = item.refId, count = item.count, charge = item.charge, enchantmentCharge = item.enchantmentCharge, soul = item.soul}
+                        originalItem = {refId = item.refId, count = item.count, charge = item.charge, enchantmentCharge = item.enchantmentCharge, soul = item.soul}
+                        itemFound = true
                     end
                 end
             end
         end
-		if originalItem and (isGold and object.goldValue or object.count) > totalCountInInventory then
+        if not itemFound then
 			if isGold then
-				object.goldValue = originalItem.count
-			else
-				object.count = originalItem.count
+				object.refId, object.count = "gold_001", object.goldValue
 			end
-			local inventory = Players[pid].data.inventory
-			for i = #inventory, 1, -1 do
-				local item = inventory[i]
-				if item and item.refId == originalItem.refId then
-					table.remove(inventory, i)
-					Players[pid]:LoadItemChanges({originalItem}, enumerations.inventory.REMOVE)
-					break
-				end
-			end
-			Players[pid]:Save()
-			Players[pid]:LoadInventory()
-			Players[pid]:LoadEquipment()
-
-			punishment(pid)
-		end
+            punishment(pid, object, 1)
+            return customEventHooks.makeEventStatus(false, false)
+        elseif (isGold and object.goldValue or object.count) > totalCountInInventory then
+            if isGold then
+                object.goldValue = totalCountInInventory
+            else
+                object.count = totalCountInInventory
+            end
+            local inventory = Players[pid].data.inventory
+            for i = #inventory, 1, -1 do
+                local item = inventory[i]
+                if item and ((isGold and string.match(item.refId, "^gold_")) or item.refId == object.refId) then
+                    table.remove(inventory, i)
+                end
+            end
+            if totalCountInInventory > 0 then
+                inventoryHelper.addItem(inventory, object.refId, totalCountInInventory, object.charge or -1, object.enchantmentCharge or -1, object.soul or "")
+            end
+            Players[pid]:Save()
+            Players[pid]:LoadInventory()
+            Players[pid]:LoadEquipment()
+            punishment(pid, object, 2)
+        end
     end
 end
 
@@ -211,7 +235,7 @@ function endTradeCheck(pid)
 					end
 				end
 
-				punishment(pid)
+				punishment(pid, invalidSales, 3)
             end
         end
 
@@ -412,7 +436,7 @@ local function OnContainer(eventStatus, pid, cellDescription)
 						end
 					end
 
-					punishment(pid)
+					punishment(pid, invalidOutItems, 4)
 				else
 					-- Синронизация таблиц при ликвидкой выкладке
 					for otherPid, otherData in pairs(playerData) do
