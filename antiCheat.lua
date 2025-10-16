@@ -45,7 +45,7 @@ local function punishment(pid, object, count)
 				tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to sell more items to the NPC than I had: \"" .. invalid.refId .. "\", sold: " .. invalid.soldCount .. ", had: " .. invalid.hadCount .. ", cheated: " .. invalid.difference)
 			end
 		end
-	elseif config.logMessage and count == 3 then
+	elseif config.logMessage and count == 4 then
 		if object and #object > 0 then
 			for _, invalid in ipairs(object) do
 				tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to put an item in a container with more items than I had: \"" .. invalid.refId .. "\", sold: " .. invalid.soldCount .. ", had: " .. invalid.hadCount .. ", cheated: " .. invalid.difference)
@@ -497,4 +497,5 @@ customEventHooks.registerValidator("OnObjectPlace", OnObjectPlace)
 
 customEventHooks.registerHandler("OnObjectActivate", OnObjectActivate)
 customEventHooks.registerHandler("OnContainer", OnContainer)
+
 
