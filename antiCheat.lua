@@ -18,6 +18,14 @@ config.allSync = true             ------
 
 local vanillaSand = "#CAA560"
 local playerData = {}
+
+local CheatType = {
+    ITEM_NOT_EXIST = 1,
+    MORE_ITEMS_THAN_INVENTORY = 2,
+    SELL_MORE_ITEMS_THAN_OWNED = 3,
+    CONTAINER_MORE_ITEMS_THAN_OWNED = 4
+}
+
 local lang = {
     En = {
         anticheatPrefix = "[Anticheat]:",
@@ -45,7 +53,7 @@ local lang = {
     }
 }
 
-local function punishment(pid, object, count)
+local function punishment(pid, object, cheatType)
 	local currentLang = lang[config.language] or lang.En  -- Default to English if language not found
 	local playerName = Players[pid].accountName
 	
@@ -63,17 +71,17 @@ local function punishment(pid, object, count)
 	
 	-- Log messages if enabled
 	if config.logMessage then
-		if count == 1 then
+		if cheatType == CheatType.ITEM_NOT_EXIST then
 			tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logItemNotExist:format(playerName, object.refId, object.count or 0))
-		elseif count == 2 then
+		elseif cheatType == CheatType.MORE_ITEMS_THAN_INVENTORY then
 			tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logMoreItems:format(playerName, object.refId, object.count or 0))
-		elseif count == 3 then
+		elseif cheatType == CheatType.SELL_MORE_ITEMS_THAN_OWNED then
 			if object and #object > 0 then
 				for _, invalid in ipairs(object) do
 					tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logSellMoreItems:format(playerName, invalid.refId, invalid.soldCount, invalid.hadCount, invalid.difference))
 				end
 			end
-		elseif count == 4 then
+		elseif cheatType == CheatType.CONTAINER_MORE_ITEMS_THAN_OWNED then
 			if object and #object > 0 then
 				for _, invalid in ipairs(object) do
 					tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logContainerMoreItems:format(playerName, invalid.refId, invalid.soldCount, invalid.hadCount, invalid.difference))
@@ -122,7 +130,7 @@ local function OnObjectPlace(eventStatus, pid, cellDescription, objects)
 			if isGold then
 				object.refId, object.count = "gold_001", object.goldValue
 			end
-            punishment(pid, object, 1)
+            punishment(pid, object, CheatType.ITEM_NOT_EXIST)
             return customEventHooks.makeEventStatus(false, false)
         elseif (isGold and object.goldValue or object.count) > totalCountInInventory then
             if isGold then
@@ -143,7 +151,7 @@ local function OnObjectPlace(eventStatus, pid, cellDescription, objects)
             Players[pid]:Save()
             Players[pid]:LoadInventory()
             Players[pid]:LoadEquipment()
-            punishment(pid, object, 2)
+            punishment(pid, object, CheatType.MORE_ITEMS_THAN_INVENTORY)
         end
     end
 end
@@ -282,7 +290,7 @@ function endTradeCheck(pid)
 					end
 				end
 
-				punishment(pid, invalidSales, 3)
+				punishment(pid, invalidSales, CheatType.SELL_MORE_ITEMS_THAN_OWNED)
             end
         end
 
@@ -487,7 +495,7 @@ local function OnContainer(eventStatus, pid, cellDescription)
 						end
 					end
 
-					punishment(pid, invalidOutItems, 4)
+					punishment(pid, invalidOutItems, CheatType.CONTAINER_MORE_ITEMS_THAN_OWNED)
 				else
 					-- EN: Synchronization tables with valid layout
 					-- RU: Синронизация таблиц при ликвидкой выкладке
