@@ -18,45 +18,76 @@ config.allSync = true             ------
 
 local vanillaSand = "#CAA560"
 local playerData = {}
+local lang = {
+    En = {
+        anticheatPrefix = "[Anticheat]:",
+        kickMessage = "Player %s has been kicked for using cheats.",
+        banMessage = "Player %s has been banned for using cheats.",
+        caughtMessage = "Player %s has been caught trying to use cheats.",
+        logKickMessage = "Player %s has been kicked for using cheats",
+        logBanMessage = "Player %s has been banned for using cheats",
+        logItemNotExist = "Player %s tried to place item that doesn't exist in inventory: \"%s\" x%d",
+        logMoreItems = "Player %s placed more items than you have in inventory: \"%s\" x%d",
+        logSellMoreItems = "Player %s tried to sell more items to the NPC than I had: \"%s\", sold: %d, had: %d, cheated: %d",
+        logContainerMoreItems = "Player %s tried to put an item in a container with more items than I had: \"%s\", sold: %d, had: %d, cheated: %d"
+    },
+    Ru = {
+        anticheatPrefix = "[Античит]:",
+        kickMessage = "Игрок %s был кикнут за использование читов.",
+        banMessage = "Игрок %s был забанен за использование читов.",
+        caughtMessage = "Игрок %s был замечен за попыткой использования читов.",
+        logKickMessage = "Игрок %s был кикнут за использование читов",
+        logBanMessage = "Игрок %s был забанен за использование читов",
+        logItemNotExist = "Игрок %s попытался разместить предмет, которого нет в инвентаре: \"%s\" x%d",
+        logMoreItems = "Игрок %s разместил больше предметов, чем есть в инвентаре: \"%s\" x%d",
+        logSellMoreItems = "Игрок %s попытался продать больше предметов NPC, чем у него было: \"%s\", продано: %d, было: %d, чит: %d",
+        logContainerMoreItems = "Игрок %s попытался положить предмет в контейнер больше, чем у него было: \"%s\", продано: %d, было: %d, чит: %d"
+    }
+}
 
 local function punishment(pid, object, count)
+	local currentLang = lang[config.language] or lang.En  -- Default to English if language not found
+	local playerName = Players[pid].accountName
+	
 	if config.globalMessage then
-		if config.kickPlayer and config.language == "Ru" then
-			tes3mp.SendMessage(pid, color.Red .. "[Античит]:" .. vanillaSand .. " Игрок " .. Players[pid].accountName .. " был кикнут за использование читов.\n", true)
-		elseif config.kickPlayer and config.language == "En" then
-			tes3mp.SendMessage(pid, color.Red .. "[Anticheat]:" .. vanillaSand .. " Player " .. Players[pid].accountName .. " has been kicked for using cheats.\n", true)
-		elseif config.banPlayer and config.language == "Ru" then
-			tes3mp.SendMessage(pid, color.Red .. "[Античит]:" .. vanillaSand .. " Игрок " .. Players[pid].accountName .. " был забанен за использование читов.\n", true)
-		elseif config.banPlayer and config.language == "En" then
-			tes3mp.SendMessage(pid, color.Red .. "[Anticheat]:" .. vanillaSand .. " Player " .. Players[pid].accountName .. " has been banned for using cheats.\n", true)
-		elseif not config.kickPlayer and not config.banPlayer and config.language == "Ru" then
-			tes3mp.SendMessage(pid, color.Red .. "[Античит]:" .. vanillaSand .. " Игрок " .. Players[pid].accountName .. " был замечен за попыткой использования читов.\n", true)
-		elseif not config.kickPlayer and not config.banPlayer and config.language == "En" then
-			tes3mp.SendMessage(pid, color.Red .. "[Anticheat]:" .. vanillaSand .. " Player " .. Players[pid].accountName .. " has been caught trying to use cheats.\n", true)
+		local message
+		if config.kickPlayer then
+			message = currentLang.kickMessage:format(playerName)
+		elseif config.banPlayer then
+			message = currentLang.banMessage:format(playerName)
+		else
+			message = currentLang.caughtMessage:format(playerName)
 		end
+		tes3mp.SendMessage(pid, color.Red .. currentLang.anticheatPrefix .. vanillaSand .. " " .. message .. "\n", true)
 	end
-	if config.logMessage and count == 1 then
-		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to place item that doesn't exist in inventory: \"" .. object.refId .. "\" x" .. (object.count or 0))
-	elseif config.logMessage and count == 2 then
-		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " placed more items than you have in inventory: \"" .. object.refId .. "\" x" .. (object.count or 0))
-	elseif config.logMessage and count == 3 then
-		if object and #object > 0 then
-			for _, invalid in ipairs(object) do
-				tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to sell more items to the NPC than I had: \"" .. invalid.refId .. "\", sold: " .. invalid.soldCount .. ", had: " .. invalid.hadCount .. ", cheated: " .. invalid.difference)
+	
+	-- Log messages if enabled
+	if config.logMessage then
+		if count == 1 then
+			tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logItemNotExist:format(playerName, object.refId, object.count or 0))
+		elseif count == 2 then
+			tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logMoreItems:format(playerName, object.refId, object.count or 0))
+		elseif count == 3 then
+			if object and #object > 0 then
+				for _, invalid in ipairs(object) do
+					tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logSellMoreItems:format(playerName, invalid.refId, invalid.soldCount, invalid.hadCount, invalid.difference))
+				end
+			end
+		elseif count == 4 then
+			if object and #object > 0 then
+				for _, invalid in ipairs(object) do
+					tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logContainerMoreItems:format(playerName, invalid.refId, invalid.soldCount, invalid.hadCount, invalid.difference))
+				end
 			end
 		end
-	elseif config.logMessage and count == 4 then
-		if object and #object > 0 then
-			for _, invalid in ipairs(object) do
-				tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " tried to put an item in a container with more items than I had: \"" .. invalid.refId .. "\", sold: " .. invalid.soldCount .. ", had: " .. invalid.hadCount .. ", cheated: " .. invalid.difference)
-			end
+		
+		if config.kickPlayer then
+			tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logKickMessage:format(playerName))
+		elseif config.banPlayer then
+			tes3mp.LogMessage(1, currentLang.anticheatPrefix .. " " .. currentLang.logBanMessage:format(playerName))
 		end
 	end
-	if config.logMessage and config.kickPlayer then
-		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " has been kicked for using cheats")
-	elseif config.logMessage and config.banPlayer then
-		tes3mp.LogMessage(1, "[Anticheat]: Player " .. Players[pid].accountName .. " has been banned for using cheats")
-	end
+	
 	if config.banPlayer then
 		tes3mp.BanAddress(tes3mp.GetIP(pid))
 	elseif config.kickPlayer then
@@ -117,7 +148,8 @@ local function OnObjectPlace(eventStatus, pid, cellDescription, objects)
     end
 end
 
--- Функция сравнения предметов для бартера и контейнера
+-- EN: Function to compare items for barter and container
+-- RU: Функция сравнения предметов для бартера и контейнера
 local function compareItemsExceptCount(item1, item2)
 	if not item1 or not item2 then return false end
 	if item1.refId ~= item2.refId then return false end
@@ -135,30 +167,40 @@ function endTradeCheck(pid)
 	local npcGoldPool = LoadedCells[cellDescription].data.objectData[playerData[pid].uniqueIndex].goldPool
 	local npcInventory = LoadedCells[cellDescription].data.objectData[playerData[pid].uniqueIndex].inventory
     if playerData[pid] and playerData[pid].npcInventoryBefore and npcInventory then
-		local soldItems = {} -- Таблица проданных предметов НПС
+		-- EN: Table of items sold by NPC
+		-- RU: Таблица проданных предметов НПС
+		local soldItems = {} 
 		local goldCheat = false
-		local processedBefore = {} -- Отслеживаем обработанные предметы из "ДО"
+
+		-- EN: Track processed items from "BEFORE"
+		-- RU: Отслеживаем обработанные предметы из "ДО"
+		local processedBefore = {} 
 
 		for i, itemBefore in ipairs(playerData[pid].npcInventoryBefore) do
 			if itemBefore and itemBefore.refId ~= "gold_001" and not processedBefore[i] then
 				local totalCountBefore = 0
 				local totalCountAfter = 0
-				-- Считаем общее количество предметов "ДО"
+				-- EN: Count total number of items "BEFORE"
+				-- RU: Считаем общее количество предметов "ДО"
 				for k, item in ipairs(playerData[pid].npcInventoryBefore) do
 					if item and compareItemsExceptCount(itemBefore, item) then
 						totalCountBefore = totalCountBefore + item.count
-						processedBefore[k] = true -- Обработанные
+						-- EN: Processed
+						-- RU: Обработанные
+						processedBefore[k] = true 
 					end
 				end
 
-				-- Считаем общее количество предметов "ПОСЛЕ"
+				-- EN: Count total number of items "AFTER"
+				-- RU: Считаем общее количество предметов "ПОСЛЕ"
 				for _, itemAfter in ipairs(npcInventory) do
 					if itemAfter and compareItemsExceptCount(itemBefore, itemAfter) then
 						totalCountAfter = totalCountAfter + itemAfter.count
 					end
 				end
 
-				-- Идентифицируем проданные предметы по увеличению
+				-- EN: Identify sold items by increase
+				-- RU: Идентифицируем проданные предметы по увеличению
 				local countDifference = totalCountAfter - totalCountBefore
 
 				if countDifference > 0 then
@@ -167,7 +209,8 @@ function endTradeCheck(pid)
 			end
 		end
 
-		-- Поиск новых предметов у НПС, которых не было "ДО"
+		-- EN: Search for new items in NPC that weren't there "BEFORE"
+		-- RU: Поиск новых предметов у НПС, которых не было "ДО"
 		for _, itemAfter in ipairs(npcInventory) do
 			if itemAfter and itemAfter.refId ~= "gold_001" then
 				local foundInBefore = false
@@ -185,7 +228,8 @@ function endTradeCheck(pid)
 			end
 		end
 
-		-- Расчет золота
+		-- EN: Gold calculation
+		-- RU: Расчет золота
 		if npcGoldPool - playerData[pid].npcGoldPool > 0 then
 			local playerGoldBefore = 0
 			if playerData[pid].playerInventoryBefore then
@@ -200,7 +244,9 @@ function endTradeCheck(pid)
 				goldCheat = true
 			end
 		end
-		-- Проверка игрока на валидность
+
+		-- EN: Check player for validity
+		-- RU: Проверка игрока на валидность
 		if #soldItems > 0 or goldCheat then
 			local invalidSales = {}
 
@@ -228,7 +274,8 @@ function endTradeCheck(pid)
 				LoadedCells[cellDescription].data.objectData[playerData[pid].uniqueIndex].goldPool = playerData[pid].npcGoldPool
 				LoadedCells[cellDescription]:Save()
 
-				-- Синхранизация откатанного НПС
+				-- EN: Synchronization of rolled back NPC
+				-- RU: Синхранизация откатанного НПС
 				for pid, player in pairs(Players) do
 					if player:IsLoggedIn() and player.data.location.cell == cellDescription then
 						LoadedCells[cellDescription]:LoadActorPackets(pid, LoadedCells[cellDescription].data.objectData, {playerData[pid].uniqueIndex})
@@ -253,11 +300,14 @@ function endTradeCheck(pid)
 end
 
 function checkPlayerPosition(pid)
-	-- Останавливаем таймер для последовательного перезапуска
+	-- EN: Stop timer for sequential restart
+	-- RU: Останавливаем таймер для последовательного перезапуска
 	if playerData[pid] and playerData[pid].positionTimer then
         tes3mp.StopTimer(playerData[pid].positionTimer)
 	else
-		return -- Для безопасности
+		return 
+		-- EN: For safety
+		-- RU: Для безопасности
     end
 
 	local x = tes3mp.GetPosX(pid)
@@ -429,7 +479,8 @@ local function OnContainer(eventStatus, pid, cellDescription)
 						end
 					end
 
-					-- Синронизация таблиц при НЕликвидкой выкладке
+					-- EN: Synchronization tables with invalid layout
+					-- RU: Синронизация таблиц при НЕликвидкой выкладке
 					for otherPid, otherData in pairs(playerData) do
 						if playerData[otherPid].uniqueIndex == playerData[pid].uniqueIndex then
 							LoadedCells[cellDescription].data.objectData[playerData[otherPid].uniqueIndex].inventory = playerData[pid].containerBefore
@@ -438,7 +489,8 @@ local function OnContainer(eventStatus, pid, cellDescription)
 
 					punishment(pid, invalidOutItems, 4)
 				else
-					-- Синронизация таблиц при ликвидкой выкладке
+					-- EN: Synchronization tables with valid layout
+					-- RU: Синронизация таблиц при ликвидкой выкладке
 					for otherPid, otherData in pairs(playerData) do
 						if playerData[otherPid].uniqueIndex == playerData[pid].uniqueIndex then
 							playerData[otherPid].containerBefore = tableHelper.deepCopy(LoadedCells[cellDescription].data.objectData[playerData[pid].uniqueIndex].inventory)
